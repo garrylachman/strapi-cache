@@ -184,9 +184,24 @@ const middleware$1 = async (ctx, next) => {
   const { cacheHeaders, cacheHeadersDenyList, cacheHeadersAllowList, cacheAuthorizedRequests } = getCacheHeaderConfig();
   const cacheStore = cacheService.getCacheInstance();
   const { url } = ctx.request;
-  const originalReq = ctx.req;
-  const bodyBuffer = await rawBody__default.default(originalReq);
-  const body = bodyBuffer.toString();
+  let body = "";
+  try {
+    const originalReq = ctx.req;
+    const bodyBuffer = await rawBody__default.default(originalReq);
+    body = bodyBuffer.toString();
+    const clonedReq = new Stream.Readable();
+    clonedReq.push(bodyBuffer);
+    clonedReq.push(null);
+    clonedReq.headers = { ...originalReq.headers };
+    clonedReq.method = originalReq.method;
+    clonedReq.url = originalReq.url;
+    clonedReq.httpVersion = originalReq.httpVersion;
+    clonedReq.socket = originalReq.socket;
+    clonedReq.connection = originalReq.connection;
+    ctx.req = clonedReq;
+    ctx.request.req = clonedReq;
+  } catch (error) {
+  }
   const key = generateCacheKey(ctx, body);
   const cacheEntry = await cacheStore.get(key);
   const cacheControlHeader = ctx.request.headers["cache-control"];
@@ -305,7 +320,6 @@ const middlewares = {
 };
 const register = ({ strapi: strapi2 }) => {
   strapi2.server.use(middlewares.cache);
-  strapi2.server.use(middlewares.graphql);
 };
 const config = {
   default: ({ env }) => ({

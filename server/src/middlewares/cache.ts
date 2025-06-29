@@ -2,7 +2,8 @@ import { Context } from 'koa';
 import { generateCacheKey } from '../utils/key';
 import { CacheService } from '../../src/types/cache.types';
 import { loggy } from '../utils/log';
-import Stream from 'stream';
+import Stream, { Readable } from 'stream';
+
 import { decodeBufferToText, decompressBuffer, streamToBuffer } from '../utils/body';
 import { getCacheHeaderConfig, getHeadersToStore } from '../utils/header';
 import rawBody from 'raw-body';
@@ -15,9 +16,27 @@ const middleware = async (ctx: Context, next: any) => {
   const cacheStore = cacheService.getCacheInstance();
   const { url } = ctx.request;
 
-  const originalReq = ctx.req;
-  const bodyBuffer = await rawBody(originalReq);
-  const body = bodyBuffer.toString();
+  let body = '';
+
+  try {
+    const originalReq = ctx.req;
+    const bodyBuffer = await rawBody(originalReq);
+    body = bodyBuffer.toString();
+
+    const clonedReq = new Readable();
+    clonedReq.push(bodyBuffer);
+    clonedReq.push(null);
+
+    (clonedReq as any).headers = { ...originalReq.headers };
+    (clonedReq as any).method = originalReq.method;
+    (clonedReq as any).url = originalReq.url;
+    (clonedReq as any).httpVersion = originalReq.httpVersion;
+    (clonedReq as any).socket = originalReq.socket;
+    (clonedReq as any).connection = originalReq.connection;
+
+    ctx.req = clonedReq as any;
+    ctx.request.req = clonedReq as any;
+  } catch (error) {}
 
   const key = generateCacheKey(ctx, body);
   const cacheEntry = await cacheStore.get(key);
