@@ -99,10 +99,9 @@ const bootstrap = ({ strapi: strapi2 }) => {
   loggy.info("Plugin initialized");
   strapi2.admin.services.permission.actionProvider.registerMany(actions);
 };
-const generateCacheKey = (context) => {
+const generateCacheKey = (context, body = "") => {
   const { url } = context.request;
   const { method } = context.request;
-  const { body } = context.request;
   const hash = createHash("sha256").update(body).digest("base64url");
   return `${method}:${url}:${hash}`;
 };
@@ -181,7 +180,10 @@ const middleware$1 = async (ctx, next) => {
   const { cacheHeaders, cacheHeadersDenyList, cacheHeadersAllowList, cacheAuthorizedRequests } = getCacheHeaderConfig();
   const cacheStore = cacheService.getCacheInstance();
   const { url } = ctx.request;
-  const key = generateCacheKey(ctx);
+  const originalReq = ctx.req;
+  const bodyBuffer = await rawBody(originalReq);
+  const body = bodyBuffer.toString();
+  const key = generateCacheKey(ctx, body);
   const cacheEntry = await cacheStore.get(key);
   const cacheControlHeader = ctx.request.headers["cache-control"];
   const noCache = cacheControlHeader && cacheControlHeader.includes("no-cache");

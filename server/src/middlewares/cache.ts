@@ -5,6 +5,7 @@ import { loggy } from '../utils/log';
 import Stream from 'stream';
 import { decodeBufferToText, decompressBuffer, streamToBuffer } from '../utils/body';
 import { getCacheHeaderConfig, getHeadersToStore } from '../utils/header';
+import rawBody from 'raw-body';
 
 const middleware = async (ctx: Context, next: any) => {
   const cacheService = strapi.plugin('strapi-cache').services.service as CacheService;
@@ -13,7 +14,12 @@ const middleware = async (ctx: Context, next: any) => {
     getCacheHeaderConfig();
   const cacheStore = cacheService.getCacheInstance();
   const { url } = ctx.request;
-  const key = generateCacheKey(ctx);
+
+  const originalReq = ctx.req;
+  const bodyBuffer = await rawBody(originalReq);
+  const body = bodyBuffer.toString();
+
+  const key = generateCacheKey(ctx, body);
   const cacheEntry = await cacheStore.get(key);
   const cacheControlHeader = ctx.request.headers['cache-control'];
   const noCache = cacheControlHeader && cacheControlHeader.includes('no-cache');
@@ -40,7 +46,12 @@ const middleware = async (ctx: Context, next: any) => {
 
   await next();
 
-  if ((ctx.method === 'GET' || ctx.method === 'POST') && ctx.status >= 200 && ctx.status < 300 && routeIsCachable) {
+  if (
+    (ctx.method === 'GET' || ctx.method === 'POST') &&
+    ctx.status >= 200 &&
+    ctx.status < 300 &&
+    routeIsCachable
+  ) {
     loggy.info(`MISS with key: ${key}`);
     const headersToStore = getHeadersToStore(
       ctx,

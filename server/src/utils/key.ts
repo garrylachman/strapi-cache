@@ -1,10 +1,9 @@
 import { createHash } from 'crypto';
 import { Context } from 'koa';
 
-export const generateCacheKey = (context: Context) => {
+export const generateCacheKey = (context: Context, body: string = '') => {
   const { url } = context.request;
   const { method } = context.request;
-  const { body } = context.request;
 
   const hash = createHash('sha256').update(body).digest('base64url');
 
