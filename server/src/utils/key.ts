@@ -4,8 +4,11 @@ import { Context } from 'koa';
 export const generateCacheKey = (context: Context) => {
   const { url } = context.request;
   const { method } = context.request;
+  const { body } = context.request;
 
-  return `${method}:${url}`;
+  const hash = createHash('sha256').update(body).digest('base64url');
+
+  return `${method}:${url}:${hash}`;
 };
 
 export const generateGraphqlCacheKey = (payload: string) => {
