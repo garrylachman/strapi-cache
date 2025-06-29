@@ -40,7 +40,7 @@ const middleware = async (ctx: Context, next: any) => {
 
   await next();
 
-  if (ctx.method === 'GET' && ctx.status >= 200 && ctx.status < 300 && routeIsCachable) {
+  if ((ctx.method === 'GET' || ctx.method === 'POST') && ctx.status >= 200 && ctx.status < 300 && routeIsCachable) {
     loggy.info(`MISS with key: ${key}`);
     const headersToStore = getHeadersToStore(
       ctx,
